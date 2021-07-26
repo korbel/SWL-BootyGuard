@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<Root>
+<Module  name = "BootyGuard"
+	movie       = "BootyGuard\BootyGuard.swf"
+	flags       = ""
+	depth_layer = "Top"
+	sub_depth   = "2"
+	variable    = "BootyGuard"
+	criteria    = "BootyGuard &amp;&amp; (guimode &amp; (GUIMODEFLAGS_INPLAY | GUIMODEFLAGS_ENABLEALLGUI))"
+	/>
+</Root>
