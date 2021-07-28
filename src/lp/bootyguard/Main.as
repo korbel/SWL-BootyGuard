@@ -9,6 +9,7 @@ import com.GameInterface.Game.Dynel;
 import com.GameInterface.Game.Character;
 import com.Utils.LDBFormat;
 import com.Utils.Format;
+import lp.bootyguard.utils.ArrayUtils;
 
 class lp.bootyguard.Main {
 
@@ -25,13 +26,19 @@ class lp.bootyguard.Main {
     public static var LURKER_MAX_HP_1 = 3262582;
     public static var LURKER_MAX_HP_SM = 3262582;
 
+    public static var LURKER_DYNEL_TYPES_17 = [35448, 35449];
+    public static var LURKER_DYNEL_TYPES_10 = [35448, 35449];
+    public static var LURKER_DYNEL_TYPES_5 = [37256, 37255];
+    public static var LURKER_DYNEL_TYPES_1 = [32433, 32030];
+    public static var LURKER_DYNEL_TYPES_SM = [37265, 37263];
+
     public static var LURKER_NAME:String = LDBFormat.LDBGetText(51000, 32030);
 
     private var autoLootInjectInterval:Number;
     private var autoLootInstance:Object;
     private var autoLootArgs:Array;
 
-    private var currentElite = 0;
+    private var currentElite:Number = 0;
 
     public static function main(swfRoot:MovieClip) {
         s_app = new Main(swfRoot);
@@ -74,8 +81,7 @@ class lp.bootyguard.Main {
     }
 
     public function Question() {
-        UtilsBase.PrintChatText("Ask the question!");
-        var message = Format.Printf("You are about to open an E%d box.\nAre you sure you want to do this?", currentElite);
+        var message = Format.Printf("You are about to open an E%d box.\nAre you sure you want to continue?", currentElite);
         var dialogIF = new DialogIF(message, _global.Enums.StandardButtons.e_ButtonsYesNo);
         dialogIF.SignalSelectedAS.Connect(Answer, this);
         dialogIF.Go();
@@ -83,10 +89,8 @@ class lp.bootyguard.Main {
 
     public function Answer(buttonId:Number) {
         if (buttonId == _global.Enums.StandardButtonID.e_ButtonIDNo) {
-            UtilsBase.PrintChatText("The answer is no.");
             DistributedValue.SetDValue("lootBox_window", false);
         } else {
-            UtilsBase.PrintChatText("The answer is yes.");
             Continue();
         }
         autoLootInstance = undefined;
@@ -94,46 +98,33 @@ class lp.bootyguard.Main {
 
     public function Continue() {
         if (autoLootInstance) {
-            UtilsBase.PrintChatText("Autoloot detected, so let's call it.");
             var proto = getAutoLootProto();
             if (proto.OpenBox.orig) {
-                UtilsBase.PrintChatText("Calling autoloot.");
                 proto.OpenBox.orig.apply(autoLootInstance, autoLootArgs);
             } else {
-                UtilsBase.PrintChatText("Failed to call autoloot. Reapplying hook...");
                 AutoLootInject();
             }
-        } else {
-            UtilsBase.PrintChatText("No autoloot found, let the user continue.");
         }
         autoLootInstance = undefined;
     }
 
     public function AutoLootInject() {
-        UtilsBase.PrintChatText("Trying to inject to autoloot");
-
         var proto = getAutoLootProto();
         if (proto) {
             clearInterval(autoLootInjectInterval);
 
-            UtilsBase.PrintChatText("Found prototype");
-
             if (!proto.OpenBox) {
-                UtilsBase.PrintChatText("Unsupported version AutoRepair version");
                 return;
             }
 
             var wrapper:Function = function() {
-                UtilsBase.PrintChatText("autoLootInstance and autoLootArgs set");
                 Main.s_app.autoLootInstance = this;
                 Main.s_app.autoLootArgs = arguments;
             };
 
             if (proto.OpenBox.orig) {
-                UtilsBase.PrintChatText("Aleady injected, refreshing injection");
                 wrapper.orig = proto.OpenBox.orig;
             } else {
-                UtilsBase.PrintChatText("Injection done");
                 wrapper.orig = proto.OpenBox;
             }
 
@@ -158,23 +149,20 @@ class lp.bootyguard.Main {
         }
 
         var maxHP:Number = dynel.GetStat(1);
-        var oldElite = currentElite;
-        if (maxHP == LURKER_MAX_HP_17) {
+        var type:Number = dynel.GetStat(112);
+
+        if (maxHP == LURKER_MAX_HP_17 && ArrayUtils.Contains(LURKER_DYNEL_TYPES_17, type)) {
             currentElite = 17;
-        } else if (maxHP == LURKER_MAX_HP_10) {
+        } else if (maxHP == LURKER_MAX_HP_10 && ArrayUtils.Contains(LURKER_DYNEL_TYPES_10, type)) {
             currentElite = 10;
-        } else if (maxHP == LURKER_MAX_HP_5) {
+        } else if (maxHP == LURKER_MAX_HP_5 && ArrayUtils.Contains(LURKER_DYNEL_TYPES_5, type)) {
             currentElite = 5;
-        } else if (maxHP == LURKER_MAX_HP_1) {
+        } else if (maxHP == LURKER_MAX_HP_1 && ArrayUtils.Contains(LURKER_DYNEL_TYPES_1, type)) {
             currentElite = 1;
-        } else if (maxHP == LURKER_MAX_HP_SM) {
+        } else if (maxHP == LURKER_MAX_HP_SM && ArrayUtils.Contains(LURKER_DYNEL_TYPES_SM, type)) {
             currentElite = 0;
         } else {
-            UtilsBase.PrintChatText("Can't determine lurker level. MaxHP: " + maxHP);
-        }
-
-        if (oldElite != currentElite) {
-            UtilsBase.PrintChatText("Elite level set to: " + currentElite);
+            UtilsBase.PrintChatText("BootyGuard: Can't determine lurker level. MaxHP: " + maxHP + ", Type: " + type);
         }
     }
 
@@ -201,23 +189,14 @@ class lp.bootyguard.Main {
     }
 
     private function shouldAskQuestion():Boolean {
-        var maxElite = getMaxElite();
+        var maxElite:Number = getMaxElite();
         var nyrOnCooldown:Boolean = isNyrOnCooldown();
         var nyr:Boolean = isNyr(Character.GetClientCharacter().GetPlayfieldID());
 
-        UtilsBase.PrintChatText("Are we in NYR? " + nyr);
-        UtilsBase.PrintChatText("Is NYR on CD? " + nyrOnCooldown);
-        UtilsBase.PrintChatText("What is the max NYR level currently available to us? " + maxElite);
-        if (nyr) {
-            UtilsBase.PrintChatText("What is the NYR elite level we are in? " + currentElite);
-        }
-
-        if (nyr && currentElite > 0 && maxElite > currentElite && !isNyrOnCooldown) {
-            UtilsBase.PrintChatText("We should ask the question!");
+        if (nyr && currentElite > 0 && maxElite > currentElite && !nyrOnCooldown) {
             return true;
         }
 
-        UtilsBase.PrintChatText("No need to ask the question!");
         return false;
     }
 
