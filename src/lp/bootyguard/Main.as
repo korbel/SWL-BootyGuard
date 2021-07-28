@@ -21,7 +21,7 @@ class lp.bootyguard.Main {
 
     public static var LURKER_MAX_HP_17 = 77213848;
     public static var LURKER_MAX_HP_10 = 43199824;
-    public static var LURKER_MAX_HP_5 = 11140440;
+    public static var LURKER_MAX_HP_5 = 10905556;
     public static var LURKER_MAX_HP_1 = 3262582;
     public static var LURKER_MAX_HP_SM = 3262582;
 
@@ -89,6 +89,7 @@ class lp.bootyguard.Main {
             UtilsBase.PrintChatText("The answer is yes.");
             Continue();
         }
+        autoLootInstance = undefined;
     }
 
     public function Continue() {
@@ -105,6 +106,7 @@ class lp.bootyguard.Main {
         } else {
             UtilsBase.PrintChatText("No autoloot found, let the user continue.");
         }
+        autoLootInstance = undefined;
     }
 
     public function AutoLootInject() {
