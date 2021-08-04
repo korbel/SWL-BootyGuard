@@ -9,6 +9,7 @@ import com.GameInterface.Game.Dynel;
 import com.GameInterface.Game.Character;
 import com.Utils.LDBFormat;
 import com.Utils.Format;
+import com.GameInterface.WaypointInterface;
 import lp.bootyguard.utils.ArrayUtils;
 
 class lp.bootyguard.Main {
@@ -17,7 +18,7 @@ class lp.bootyguard.Main {
 
     private static var NYR_PLAYFIELD_ID = 5710;
     private static var NYR_E10_PLAYFIELD_ID = 5715;
-    private static var NYR_SLOCK = 7961764;
+    private static var NYR_SM_LOCK = 7961764;
     private static var NYR_ELITE_LOCK = 9125207;
 
     public static var LURKER_MAX_HP_17 = 77213848;
@@ -38,7 +39,7 @@ class lp.bootyguard.Main {
     private var autoLootInstance:Object;
     private var autoLootArgs:Array;
 
-    private var currentElite:Number = 0;
+    private var currentElite:Number = null;
 
     public static function main(swfRoot:MovieClip) {
         s_app = new Main(swfRoot);
@@ -53,11 +54,7 @@ class lp.bootyguard.Main {
 
     public function OnLoad() {
         CharacterBase.SignalClientCharacterOfferedLootBox.Connect(SlotClientCharacterOfferedLootBox, this);
-
-        Nametags.SignalNametagAdded.Connect(DynelAdded, this);
-        Nametags.SignalNametagRemoved.Connect(DynelAdded, this);
-        Nametags.SignalNametagUpdated.Connect(DynelAdded, this);
-        Nametags.RefreshNametags();
+        WaypointInterface.SignalPlayfieldChanged.Connect(SlotPlayfieldChanged, this);
 
         autoLootInjectInterval = setInterval(Delegate.create(this, AutoLootInject), 1000);
     }
@@ -65,11 +62,27 @@ class lp.bootyguard.Main {
     public function OnUnload() {
         clearInterval(autoLootInjectInterval);
 
+        WaypointInterface.SignalPlayfieldChanged.Disconnect(SlotPlayfieldChanged, this);
+
         Nametags.SignalNametagAdded.Disconnect(DynelAdded, this);
         Nametags.SignalNametagRemoved.Disconnect(DynelAdded, this);
         Nametags.SignalNametagUpdated.Disconnect(DynelAdded, this);
 
         CharacterBase.SignalClientCharacterOfferedLootBox.Disconnect(SlotClientCharacterOfferedLootBox, this);
+    }
+
+    public function SlotPlayfieldChanged(playfieldId:Number) {
+        if (playfieldId == NYR_PLAYFIELD_ID || playfieldId == NYR_E10_PLAYFIELD_ID) {
+            Nametags.SignalNametagAdded.Connect(DynelAdded, this);
+            Nametags.SignalNametagRemoved.Connect(DynelAdded, this);
+            Nametags.SignalNametagUpdated.Connect(DynelAdded, this);
+            Nametags.RefreshNametags();
+        } else {
+            Nametags.SignalNametagAdded.Disconnect(DynelAdded, this);
+            Nametags.SignalNametagRemoved.Disconnect(DynelAdded, this);
+            Nametags.SignalNametagUpdated.Disconnect(DynelAdded, this);
+            currentElite = null;
+        }
     }
 
     public function SlotClientCharacterOfferedLootBox() {
@@ -133,14 +146,13 @@ class lp.bootyguard.Main {
     }
 
     public function DynelAdded(id:ID32) {
-        var dynel:Dynel = Dynel.GetDynel(id);
-
-        if (dynel.GetStat(_global.Enums.Stat.e_CarsGroup) != 3) {
+        if (currentElite != null) { 
             return;
         }
 
-        if (!isNyr(dynel.GetPlayfieldID())) {
-            currentElite = 0;
+        var dynel:Dynel = Dynel.GetDynel(id);
+
+        if (dynel.GetStat(_global.Enums.Stat.e_CarsGroup) != 3) {
             return;
         }
 
@@ -184,16 +196,11 @@ class lp.bootyguard.Main {
         return 0;
     }
 
-    private function isNyr(playfieldId:Number):Boolean {
-        return playfieldId == NYR_PLAYFIELD_ID || playfieldId == NYR_E10_PLAYFIELD_ID;
-    }
-
     private function shouldAskQuestion():Boolean {
         var maxElite:Number = getMaxElite();
         var nyrOnCooldown:Boolean = isNyrOnCooldown();
-        var nyr:Boolean = isNyr(Character.GetClientCharacter().GetPlayfieldID());
 
-        if (nyr && currentElite > 0 && maxElite > currentElite && !nyrOnCooldown) {
+        if (currentElite != null && currentElite > 0 && maxElite > currentElite && !nyrOnCooldown) {
             return true;
         }
 
